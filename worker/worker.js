@@ -5,10 +5,11 @@
 //   POST /choose    { sourceUrl, label, html }       -> emails the chosen HTML to TO_EMAIL
 //
 // Secrets / vars (set with `wrangler secret put <NAME>` — never commit keys):
-//   AI_PROVIDER       "anthropic" or "openai"
+//   AI_PROVIDER       "anthropic", "openai" or "gemini"
 //   ANTHROPIC_API_KEY required when AI_PROVIDER=anthropic
 //   OPENAI_API_KEY    required when AI_PROVIDER=openai
-//   AI_MODEL          optional override (defaults: claude-sonnet-4-5 / gpt-4o)
+//   GEMINI_API_KEY    required when AI_PROVIDER=gemini (free tier via Google AI Studio)
+//   AI_MODEL          optional override (defaults: claude-sonnet-4-5 / gpt-4o / gemini-2.5-flash)
 //   RESEND_API_KEY    required for /choose email
 //   TO_EMAIL          address that receives the chosen code
 //   ALLOWED_ORIGIN    the GitHub Pages origin allowed to call this worker
@@ -109,20 +110,24 @@ function buildPrompt(url, source, brief) {
 async function callAI(env, prompt) {
   const provider = (env.AI_PROVIDER || "anthropic").toLowerCase();
   let raw;
-  if (provider === "openai") {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+  if (provider === "openai" || provider === "gemini") {
+    // Gemini is reached through Google's OpenAI-compatible endpoint.
+    const isGemini = provider === "gemini";
+    const res = await fetch(isGemini
+      ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+      : "https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": "Bearer " + env.OPENAI_API_KEY
+        "Authorization": "Bearer " + (isGemini ? env.GEMINI_API_KEY : env.OPENAI_API_KEY)
       },
       body: JSON.stringify({
-        model: env.AI_MODEL || "gpt-4o",
+        model: env.AI_MODEL || (isGemini ? "gemini-2.5-flash" : "gpt-4o"),
         max_tokens: 8000,
         messages: [{ role: "user", content: prompt }]
       })
     });
-    if (!res.ok) throw new Error("OpenAI returned " + res.status);
+    if (!res.ok) throw new Error((isGemini ? "Gemini" : "OpenAI") + " returned " + res.status);
     const data = await res.json();
     raw = data.choices?.[0]?.message?.content || "";
   } else {

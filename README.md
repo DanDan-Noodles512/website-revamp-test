@@ -10,7 +10,7 @@ favorite, and that design's full HTML code is **emailed to the site owner**.
 |---|---|---|
 | Front-end | `index.html` in this repo, served by GitHub Pages | URL form, sample previews, pick-one button |
 | Backend | `worker/worker.js`, deployed as a Cloudflare Worker | Fetches the entered site, calls the AI 3 times, emails the chosen code |
-| AI | Anthropic (Claude) or OpenAI — chosen by config | Writes each redesign as one self-contained HTML file |
+| AI | Anthropic (Claude), OpenAI, or Google Gemini — chosen by config | Writes each redesign as one self-contained HTML file |
 | Email | Resend | Sends the chosen HTML as an attachment |
 
 GitHub Pages alone can't do this job: it serves static files only, can't hold
@@ -26,8 +26,9 @@ No keys are stored in this repo — they live only as Worker secrets.
 3. **Point the page at the worker** — In `index.html`, set `BACKEND_URL` to the
    worker URL and commit.
 4. **Worker secrets** (Cloudflare dashboard → Worker → Settings → Variables, or `wrangler secret put`):
-   - `AI_PROVIDER` = `anthropic` or `openai`
-   - `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` (matching the provider)
+   - `AI_PROVIDER` = `anthropic`, `openai` or `gemini`
+   - `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` or `GEMINI_API_KEY` (matching the provider;
+     Gemini keys are free in Google AI Studio and the free tier is plenty for testing)
    - `RESEND_API_KEY` (free at resend.com)
    - `TO_EMAIL` = the address that should receive chosen designs
    - `ALLOWED_ORIGIN` = the GitHub Pages origin, e.g. `https://<username>.github.io`

@@ -137,6 +137,7 @@ function cardEl(sample, index, sourceUrl) {
   const desktopBtn = document.createElement('button');
   desktopBtn.textContent = 'Desktop';
   desktopBtn.className = 'active';
+  desktopBtn.title = 'Open the full-size desktop view in a new tab';
   const mobileBtn = document.createElement('button');
   mobileBtn.textContent = 'Mobile';
   desktopBtn.addEventListener('click', () => {
@@ -144,6 +145,7 @@ function cardEl(sample, index, sourceUrl) {
     desktopBtn.className = 'active';
     mobileBtn.className = '';
     fitPreview(card);
+    openDesktopTab(sample);
   });
   mobileBtn.addEventListener('click', () => {
     card.classList.add('mobile');
@@ -165,6 +167,13 @@ function cardEl(sample, index, sourceUrl) {
   actions.appendChild(btn);
   card.appendChild(actions);
   return card;
+}
+
+function openDesktopTab(sample) {
+  let html = sample.html || '';
+  html = html.replace(/<script[\s\S]*?<\/script>/gi, '');
+  const blob = new Blob([html], { type: 'text/html' });
+  window.open(URL.createObjectURL(blob), '_blank');
 }
 
 function fitPreview(card) {

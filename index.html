@@ -171,12 +171,15 @@ function fitPreview(card) {
   const preview = card.querySelector('.preview');
   const frame = card.querySelector('iframe');
   if (!preview || !frame) return;
-  const deviceWidth = card.classList.contains('mobile') ? 375 : 1100;
+  const isMobile = card.classList.contains('mobile');
+  const deviceWidth = isMobile ? 375 : 1100;
+  const deviceHeight = isMobile ? 420 : 640;
   const scale = Math.min(1, preview.clientWidth / deviceWidth);
   frame.style.width = deviceWidth + 'px';
+  frame.style.height = deviceHeight + 'px';
   frame.style.transform = 'scale(' + scale + ')';
-  frame.style.transformOrigin = 'top left';
-  preview.style.height = (420 * scale) + 'px';
+  frame.style.transformOrigin = 'top center';
+  preview.style.height = (deviceHeight * scale) + 'px';
 }
 
 window.addEventListener('resize', () => {

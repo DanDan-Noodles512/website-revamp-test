@@ -29,6 +29,13 @@
   .card p.desc { padding: 0 16px 10px; color: #666; font-size: 0.9rem; }
   .card iframe { width: 100%; height: 420px; border: 0; border-top: 1px solid #eee;
                  background: #fff; }
+  .card .view-toggle { display: flex; gap: 6px; padding: 10px 16px 0; }
+  .card .view-toggle button { padding: 6px 12px; font-size: 0.85rem; border-radius: 8px;
+                 background: #eee; color: #111; }
+  .card .view-toggle button.active { background: #111; color: #fff; }
+  .card.mobile iframe { width: 375px; max-width: 100%; display: block;
+                 margin-left: auto; margin-right: auto; border-left: 1px solid #eee;
+                 border-right: 1px solid #eee; }
   .card .actions { padding: 14px 16px; margin-top: auto; }
   .card .actions button { width: 100%; }
   .card.chosen { outline: 2px solid #111; }
@@ -117,6 +124,27 @@ function cardEl(sample, index, sourceUrl) {
   const frame = document.createElement('iframe');
   frame.setAttribute('sandbox', 'allow-same-origin');
   frame.srcdoc = sample.html;
+
+  const toggle = document.createElement('div');
+  toggle.className = 'view-toggle';
+  const desktopBtn = document.createElement('button');
+  desktopBtn.textContent = 'Desktop';
+  desktopBtn.className = 'active';
+  const mobileBtn = document.createElement('button');
+  mobileBtn.textContent = 'Mobile';
+  desktopBtn.addEventListener('click', () => {
+    card.classList.remove('mobile');
+    desktopBtn.className = 'active';
+    mobileBtn.className = '';
+  });
+  mobileBtn.addEventListener('click', () => {
+    card.classList.add('mobile');
+    mobileBtn.className = 'active';
+    desktopBtn.className = '';
+  });
+  toggle.appendChild(desktopBtn);
+  toggle.appendChild(mobileBtn);
+  card.appendChild(toggle);
   card.appendChild(frame);
 
   const actions = document.createElement('div');

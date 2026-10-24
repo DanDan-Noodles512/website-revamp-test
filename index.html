@@ -27,15 +27,14 @@
           display: flex; flex-direction: column; }
   .card h3 { padding: 14px 16px 4px; font-size: 1.05rem; }
   .card p.desc { padding: 0 16px 10px; color: #666; font-size: 0.9rem; }
-  .card iframe { width: 100%; height: 420px; border: 0; border-top: 1px solid #eee;
-                 background: #fff; }
+  .card iframe { border: 0; background: #fff; height: 420px; flex: none; }
+  .card .preview { display: flex; justify-content: center; overflow: hidden;
+                 border-top: 1px solid #eee; background: #fff; }
   .card .view-toggle { display: flex; gap: 6px; padding: 10px 16px 0; }
   .card .view-toggle button { padding: 6px 12px; font-size: 0.85rem; border-radius: 8px;
                  background: #eee; color: #111; }
   .card .view-toggle button.active { background: #111; color: #fff; }
-  .card.mobile iframe { width: 375px; max-width: 100%; display: block;
-                 margin-left: auto; margin-right: auto; border-left: 1px solid #eee;
-                 border-right: 1px solid #eee; }
+  .card.mobile .preview iframe { box-shadow: 0 0 0 1px #eee; }
   .card .actions { padding: 14px 16px; margin-top: auto; }
   .card .actions button { width: 100%; }
   .card.chosen { outline: 2px solid #111; }
@@ -123,7 +122,15 @@ function cardEl(sample, index, sourceUrl) {
 
   const frame = document.createElement('iframe');
   frame.setAttribute('sandbox', 'allow-same-origin');
-  frame.srcdoc = sample.html;
+  let previewHtml = sample.html || '';
+  if (!/name=["']viewport["']/i.test(previewHtml)) {
+    previewHtml = previewHtml.replace(/<head[^>]*>/i,
+      m => m + '<meta name="viewport" content="width=device-width, initial-scale=1">');
+  }
+  frame.srcdoc = previewHtml;
+  const preview = document.createElement('div');
+  preview.className = 'preview';
+  preview.appendChild(frame);
 
   const toggle = document.createElement('div');
   toggle.className = 'view-toggle';
@@ -136,16 +143,19 @@ function cardEl(sample, index, sourceUrl) {
     card.classList.remove('mobile');
     desktopBtn.className = 'active';
     mobileBtn.className = '';
+    fitPreview(card);
   });
   mobileBtn.addEventListener('click', () => {
     card.classList.add('mobile');
     mobileBtn.className = 'active';
     desktopBtn.className = '';
+    fitPreview(card);
   });
   toggle.appendChild(desktopBtn);
   toggle.appendChild(mobileBtn);
   card.appendChild(toggle);
-  card.appendChild(frame);
+  card.appendChild(preview);
+  requestAnimationFrame(() => fitPreview(card));
 
   const actions = document.createElement('div');
   actions.className = 'actions';
@@ -156,6 +166,22 @@ function cardEl(sample, index, sourceUrl) {
   card.appendChild(actions);
   return card;
 }
+
+function fitPreview(card) {
+  const preview = card.querySelector('.preview');
+  const frame = card.querySelector('iframe');
+  if (!preview || !frame) return;
+  const deviceWidth = card.classList.contains('mobile') ? 375 : 1100;
+  const scale = Math.min(1, preview.clientWidth / deviceWidth);
+  frame.style.width = deviceWidth + 'px';
+  frame.style.transform = 'scale(' + scale + ')';
+  frame.style.transformOrigin = 'top left';
+  preview.style.height = (420 * scale) + 'px';
+}
+
+window.addEventListener('resize', () => {
+  document.querySelectorAll('.card').forEach(fitPreview);
+});
 
 async function choose(index, btn, sourceUrl) {
   const sample = samples[index];

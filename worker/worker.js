@@ -9,7 +9,7 @@
 //   ANTHROPIC_API_KEY required when AI_PROVIDER=anthropic
 //   OPENAI_API_KEY    required when AI_PROVIDER=openai
 //   GEMINI_API_KEY    required when AI_PROVIDER=gemini (free tier via Google AI Studio)
-//   AI_MODEL          optional override (defaults: claude-sonnet-4-5 / gpt-4o / gemini-2.5-flash)
+//   AI_MODEL          optional override (defaults: claude-sonnet-4-5 / gpt-4o / gemini-3-flash-preview)
 //   RESEND_API_KEY    required for /choose email
 //   TO_EMAIL          address that receives the chosen code
 //   ALLOWED_ORIGIN    the GitHub Pages origin allowed to call this worker
@@ -122,7 +122,7 @@ async function callAI(env, prompt) {
         "Authorization": "Bearer " + (isGemini ? env.GEMINI_API_KEY : env.OPENAI_API_KEY)
       },
       body: JSON.stringify({
-        model: env.AI_MODEL || (isGemini ? "gemini-2.5-flash" : "gpt-4o"),
+        model: env.AI_MODEL || (isGemini ? "gemini-3-flash-preview" : "gpt-4o"),
         max_tokens: 8000,
         messages: [{ role: "user", content: prompt }]
       })

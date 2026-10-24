@@ -2,7 +2,7 @@
 //
 // Endpoints:
 //   POST /generate  { url }                          -> { samples: [{label, description, html} x3] }
-//   POST /choose    { sourceUrl, label, html }       -> emails the chosen HTML to TO_EMAIL
+//   POST /choose    { sourceUrl, label, html, name, email } -> emails the chosen HTML to TO_EMAIL, naming the visitor
 //
 // Secrets / vars (set with `wrangler secret put <NAME>` — never commit keys):
 //   AI_PROVIDER       "anthropic", "openai" or "gemini"
@@ -153,9 +153,12 @@ async function callAI(env, prompt) {
 }
 
 async function choose(request, env, cors) {
-  const { sourceUrl, label, html } = await request.json();
+  const { sourceUrl, label, html, name, email } = await request.json();
   if (!html) throw new Error("Missing html");
   if (!env.RESEND_API_KEY || !env.TO_EMAIL) throw new Error("Email is not configured on the backend yet");
+
+  const visitorEmail = typeof email === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : "";
+  const visitorName = typeof name === "string" ? name.trim().slice(0, 120) : "";
 
   const attachment = {
     filename: "chosen-redesign.html",
@@ -171,9 +174,11 @@ async function choose(request, env, cors) {
       from: "Site Revamp Test <onboarding@resend.dev>",
       to: [env.TO_EMAIL],
       subject: "Chosen redesign: " + (label || "Design") + " for " + (sourceUrl || "submitted site"),
+      ...(visitorEmail ? { reply_to: visitorEmail } : {}),
       text: [
         "A visitor picked a redesign on the Site Revamp test page.",
         "",
+        "Submitted by: " + (visitorName || "(no name given)") + (visitorEmail ? " <" + visitorEmail + ">" : ""),
         "Source site: " + (sourceUrl || "(unknown)"),
         "Chosen design: " + (label || "(unnamed)"),
         "",

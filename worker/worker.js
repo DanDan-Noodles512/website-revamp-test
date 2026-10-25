@@ -98,7 +98,7 @@ function buildPrompt(url, source, brief) {
     "- Output ONLY the complete HTML document. No explanations, no markdown fences.",
     "- All CSS must be inline in a <style> tag in the <head>. No external files, no JavaScript frameworks.",
     "- Keep the site's real business name, headline ideas, services/products and contact details from the source.",
-    "- Reuse image URLs only if they appear in the source; otherwise use simple CSS shapes/gradients instead of images.",
+    "- Reuse image URLs only if they appear in the source and fit the design; otherwise include 2-3 real photographic images that suit the site's subject, using https://picsum.photos/seed/<short-descriptive-seed>/1200/800 style URLs (vary the seed per image, e.g. hero, service, team, and size heroes around 1200x800 and smaller images around 800x600). Give every image descriptive alt text. CSS shapes/gradients are fine as accents, but the page should not feel imageless.",
     "- Make it responsive and genuinely good-looking: clear hierarchy, one primary call to action, footer with contact info.",
     "",
     "Source URL: " + url,

@@ -149,23 +149,40 @@ async function callAI(env, prompt) {
   if (provider === "openai" || provider === "gemini") {
     // Gemini is reached through Google's OpenAI-compatible endpoint.
     const isGemini = provider === "gemini";
-    const res = await fetch(isGemini
+    const endpoint = isGemini
       ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-      : "https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer " + (isGemini ? env.GEMINI_API_KEY : env.OPENAI_API_KEY)
-      },
-      body: JSON.stringify({
-        model: env.AI_MODEL || (isGemini ? "gemini-3-flash-preview" : "gpt-4o"),
-        max_tokens: 8000,
-        messages: [{ role: "user", content: prompt }]
-      })
-    });
-    if (!res.ok) throw new Error((isGemini ? "Gemini" : "OpenAI") + " returned " + res.status);
-    const data = await res.json();
-    raw = data.choices?.[0]?.message?.content || "";
+      : "https://api.openai.com/v1/chat/completions";
+    const apiKey = isGemini ? env.GEMINI_API_KEY : env.OPENAI_API_KEY;
+    // Free-tier Gemini models get overloaded at peak times: try the
+    // configured model first, then fall back to the other known-good
+    // Flash models before giving up with a busy error.
+    const models = isGemini
+      ? [...new Set([env.AI_MODEL || "gemini-3-flash-preview", "gemini-3-flash-preview", "gemini-3.1-flash-lite", "gemini-3.8-flash"])]
+      : [env.AI_MODEL || "gpt-4o"];
+    let lastStatus = 0;
+    for (const model of models) {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + apiKey
+        },
+        body: JSON.stringify({
+          model,
+          max_tokens: 8000,
+          messages: [{ role: "user", content: prompt }]
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        raw = data.choices?.[0]?.message?.content || "";
+        break;
+      }
+      lastStatus = res.status;
+      if ((res.status === 503 || res.status === 429) && model !== models[models.length - 1]) continue;
+      throw new Error((isGemini ? "Gemini" : "OpenAI") + " returned " + res.status);
+    }
+    if (raw === undefined) throw new Error((isGemini ? "Gemini" : "OpenAI") + " returned " + lastStatus);
   } else {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",

@@ -1,8 +1,8 @@
 // website-revamp-test — backend (Cloudflare Worker)
 //
 // Endpoints:
-//   POST /generate  { url }                          -> { samples: [{label, description, html} x3] }
-//   POST /choose    { sourceUrl, label, html, name, email } -> emails the chosen HTML to TO_EMAIL, naming the visitor
+//   POST /generate  { url, mirrorUrl? }            -> { samples: [{label, description, html} x3] }
+//   POST /choose    { sourceUrl, label, html, name, email, mirrorUrl? } -> emails the chosen HTML to TO_EMAIL, naming the visitor
 //
 // Secrets / vars (set with `wrangler secret put <NAME>` — never commit keys):
 //   AI_PROVIDER       "anthropic", "openai" or "gemini"
@@ -63,7 +63,7 @@ function json(obj, status, cors) {
 }
 
 async function generate(request, env, cors) {
-  const { url } = await request.json();
+  const { url, mirrorUrl } = await request.json();
   if (!url || !/^https?:\/\//i.test(url)) throw new Error("A valid http(s) URL is required");
 
   const pageRes = await fetch(url, {
@@ -81,15 +81,51 @@ async function generate(request, env, cors) {
     .replace(/\s+/g, " ")
     .slice(0, 30000);
 
+  // Optional style reference: a site the visitor wants theirs to mirror.
+  // A failed mirror fetch must not block the redesign.
+  let mirror = "";
+  if (mirrorUrl && /^https?:\/\//i.test(mirrorUrl)) {
+    try {
+      const mirrorRes = await fetch(mirrorUrl, {
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; RevampTestBot/1.0)" },
+        redirect: "follow"
+      });
+      if (mirrorRes.ok) {
+        mirror = await mirrorRes.text();
+        mirror = mirror
+          .replace(/<script[\s\S]*?<\/script>/gi, "")
+          .replace(/<style[\s\S]*?<\/style>/gi, "")
+          .replace(/<svg[\s\S]*?<\/svg>/gi, "")
+          .replace(/\s+/g, " ")
+          .slice(0, 15000);
+      }
+    } catch (_) { /* ignore: generate without the mirror reference */ }
+  }
+
   const samples = await Promise.all(STYLE_BRIEFS.map(async (s) => {
-    const html = await callAI(env, buildPrompt(url, source, s.brief));
+    const html = await callAI(env, buildPrompt(url, source, s.brief, mirrorUrl, mirror));
     return { label: s.label, description: s.description, html };
   }));
   return json({ samples }, 200, cors);
 }
 
-function buildPrompt(url, source, brief) {
+function buildPrompt(url, source, brief, mirrorUrl, mirror) {
+  const mirrorSection = mirror
+    ? [
+        "Style reference: the user would like their redesign to mirror the look and feel of " + mirrorUrl + ".",
+        "Mirror that site's layout patterns, color palette, typography style and overall vibe,",
+        "but keep the original site's own real content (business name, services/products, contact details).",
+        "Reference site HTML (trimmed):",
+        mirror,
+        ""
+      ].join("\n")
+    : "";
   return [
+    "You are a senior web designer. Redesign the homepage of the website below",
+    "as a single, self-contained HTML file with a modern, minimalistic look:",
+    brief + ".",
+    "",
+    mirrorSection,
     "You are a senior web designer. Redesign the homepage of the website below",
     "as a single, self-contained HTML file with a modern, minimalistic look:",
     brief + ".",
@@ -153,7 +189,7 @@ async function callAI(env, prompt) {
 }
 
 async function choose(request, env, cors) {
-  const { sourceUrl, label, html, name, email } = await request.json();
+  const { sourceUrl, label, html, name, email, mirrorUrl } = await request.json();
   if (!html) throw new Error("Missing html");
   if (!env.RESEND_API_KEY || !env.TO_EMAIL) throw new Error("Email is not configured on the backend yet");
 
@@ -180,6 +216,7 @@ async function choose(request, env, cors) {
         "",
         "Submitted by: " + (visitorName || "(no name given)") + (visitorEmail ? " <" + visitorEmail + ">" : ""),
         "Source site: " + (sourceUrl || "(unknown)"),
+        ...(mirrorUrl ? ["Mirror site: " + mirrorUrl] : []),
         "Chosen design: " + (label || "(unnamed)"),
         "",
         "The full HTML code is attached as chosen-redesign.html."

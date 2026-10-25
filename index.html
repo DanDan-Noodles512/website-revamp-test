@@ -56,6 +56,9 @@
       <input type="url" id="site-url" placeholder="https://example.com" required>
       <button type="submit" id="generate-btn">Generate 3 redesigns</button>
     </div>
+    <div class="row">
+      <input type="url" id="mirror-url" placeholder="Site to mirror (optional) — a site whose style you'd like yours to follow">
+    </div>
   </form>
   <div id="status"></div>
   <section id="results"></section>
@@ -72,10 +75,12 @@ const resultsEl = document.getElementById('results');
 const generateBtn = document.getElementById('generate-btn');
 let samples = []; // [{label, description, html}]
 let visitor = { name: '', email: '' };
+let mirrorUrl = '';
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   const url = document.getElementById('site-url').value.trim();
+  mirrorUrl = document.getElementById('mirror-url').value.trim();
   visitor = {
     name: document.getElementById('visitor-name').value.trim(),
     email: document.getElementById('visitor-email').value.trim()
@@ -89,7 +94,7 @@ form.addEventListener('submit', async (e) => {
     const res = await fetch(BACKEND_URL + '/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url })
+      body: JSON.stringify({ url, mirrorUrl: mirrorUrl || undefined })
     });
     if (!res.ok) throw new Error('Backend returned ' + res.status);
     const data = await res.json();
@@ -209,7 +214,8 @@ async function choose(index, btn, sourceUrl) {
         label: sample.label || ('Design ' + (index + 1)),
         html: sample.html,
         name: visitor.name,
-        email: visitor.email
+        email: visitor.email,
+        mirrorUrl: mirrorUrl || undefined
       })
     });
     if (!res.ok) throw new Error('Backend returned ' + res.status);

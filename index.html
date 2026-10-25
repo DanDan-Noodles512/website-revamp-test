@@ -91,21 +91,29 @@ form.addEventListener('submit', async (e) => {
   generateBtn.disabled = true;
   statusEl.textContent = 'Reading the site and generating three redesigns… this can take a minute.';
   try {
-    const res = await fetch(BACKEND_URL + '/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, mirrorUrl: mirrorUrl || undefined })
-    });
-    if (!res.ok) {
-      let msg = 'Something went wrong generating the redesigns. Please try again.';
+    let data = null;
+    for (let attempt = 0; attempt < 3 && !data; attempt++) {
+      const res = await fetch(BACKEND_URL + '/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, mirrorUrl: mirrorUrl || undefined })
+      });
+      if (res.ok) { data = await res.json(); break; }
+      let busy = false;
       try {
         const errData = await res.json();
-        if (errData && /503/.test(errData.error || '')) msg = "Google's AI is busy right now — please try again in a moment.";
+        busy = /503/.test(errData.error || '');
       } catch (_) {}
-      throw new Error(msg);
+      if (busy && attempt < 2) {
+        statusEl.textContent = "Google's AI is busy — retrying automatically…";
+        await new Promise(r => setTimeout(r, 4000));
+        continue;
+      }
+      throw new Error(busy
+        ? "Google's AI is busy right now — please try again in a moment."
+        : 'Something went wrong generating the redesigns. Please try again.');
     }
-    const data = await res.json();
-    samples = data.samples || [];
+    samples = (data && data.samples) || [];
     if (!samples.length) throw new Error('No samples returned');
     statusEl.textContent = 'Here are three redesigns of ' + url + ' — pick the one you like:';
     samples.forEach((s, i) => resultsEl.appendChild(cardEl(s, i, url)));

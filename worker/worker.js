@@ -154,10 +154,11 @@ async function callAI(env, prompt) {
       : "https://api.openai.com/v1/chat/completions";
     const apiKey = isGemini ? env.GEMINI_API_KEY : env.OPENAI_API_KEY;
     // Free-tier Gemini models get overloaded at peak times: try the
-    // configured model first, then fall back to the other known-good
-    // Flash models before giving up with a busy error.
+    // configured model first, then fall back through the other Flash
+    // models before giving up with a busy error. 404 also moves on,
+    // since a model can be listed yet unavailable on this endpoint.
     const models = isGemini
-      ? [...new Set([env.AI_MODEL || "gemini-3-flash-preview", "gemini-3-flash-preview", "gemini-3.1-flash-lite", "gemini-3.8-flash"])]
+      ? [...new Set([env.AI_MODEL || "gemini-3-flash-preview", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3-flash-preview", "gemini-3.6-flash", "gemini-3.7-flash", "gemini-3.8-flash", "gemini-3.1-flash-lite", "gemini-3.1-flash-lite-preview", "gemini-flash-latest", "gemini-flash-lite-latest", "gemini-3.1-pro-preview"])]
       : [env.AI_MODEL || "gpt-4o"];
     let lastStatus = 0;
     for (const model of models) {
@@ -179,7 +180,7 @@ async function callAI(env, prompt) {
         break;
       }
       lastStatus = res.status;
-      if ((res.status === 503 || res.status === 429) && model !== models[models.length - 1]) continue;
+      if ((res.status === 503 || res.status === 429 || res.status === 404) && model !== models[models.length - 1]) continue;
       throw new Error((isGemini ? "Gemini" : "OpenAI") + " returned " + res.status);
     }
     if (raw === undefined) throw new Error((isGemini ? "Gemini" : "OpenAI") + " returned " + lastStatus);

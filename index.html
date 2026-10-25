@@ -96,14 +96,21 @@ form.addEventListener('submit', async (e) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url, mirrorUrl: mirrorUrl || undefined })
     });
-    if (!res.ok) throw new Error('Backend returned ' + res.status);
+    if (!res.ok) {
+      let msg = 'Something went wrong generating the redesigns. Please try again.';
+      try {
+        const errData = await res.json();
+        if (errData && /503/.test(errData.error || '')) msg = "Google's AI is busy right now — please try again in a moment.";
+      } catch (_) {}
+      throw new Error(msg);
+    }
     const data = await res.json();
     samples = data.samples || [];
     if (!samples.length) throw new Error('No samples returned');
     statusEl.textContent = 'Here are three redesigns of ' + url + ' — pick the one you like:';
     samples.forEach((s, i) => resultsEl.appendChild(cardEl(s, i, url)));
   } catch (err) {
-    statusEl.textContent = 'Something went wrong generating the redesigns. Please try again.';
+    statusEl.textContent = err.message || 'Something went wrong generating the redesigns. Please try again.';
     console.error(err);
   } finally {
     generateBtn.disabled = false;
